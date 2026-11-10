@@ -8,8 +8,6 @@ export default function FilterSidebar() {
       <label className="block text-sm"><input type="checkbox" /> Action</label>
       <label className="block text-sm"><input type="checkbox" /> Drama</label>
       <label className="block text-sm"><input type="checkbox" /> Sci-Fi</label>
-
-      <p className="mt-4 text-xs text-slate-400">Filters coming soon</p>
     </aside>
   );
 }
