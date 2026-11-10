@@ -1,16 +1,27 @@
-# React + Vite
+# FilmSphere - Movie Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Student project for the Software Engineering course: a website to browse, search and sort movies, built with React (Vite), Tailwind CSS and the TMDB API.
 
-Currently, two official plugins are available:
+## Run the project
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+cp .env.example .env   # then add your TMDB API key in .env
+npm run dev
+```
 
-## React Compiler
+## API key
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Get a free key at [themoviedb.org](https://www.themoviedb.org/) (Settings > API) and put it in `.env`:
 
-## Expanding the Oxlint configuration
+```
+VITE_TMDB_API_KEY=your_key_here
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Never commit your real key. `.env` is ignored by Git.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## AI use
+
+Parts of this project were written with the help of AI.
