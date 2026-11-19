@@ -28,15 +28,15 @@ function ProfileButton() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-lg">
+        <div className="absolute left-1/2 top-full z-50 mt-3 w-36 -translate-x-1/2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl shadow-black/30">
           {currentUser ? (
             <>
-              <p className="truncate px-4 py-3 text-xs text-gray-500">
+              <p className="truncate border-b border-slate-800 px-2 py-2 text-center text-xs text-slate-400">
                 {currentUser}
               </p>
               <button
                 onClick={handleLogout}
-                className="block w-full px-4 py-3 text-left text-black hover:bg-gray-100"
+                className="block w-full px-2 py-2 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
               >
                 Log out
               </button>
@@ -45,13 +45,13 @@ function ProfileButton() {
             <>
               <Link
                 to="/login"
-                className="block px-4 py-3 text-black hover:bg-gray-100"
+                className="block px-2 py-2 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
               >
                 Log in
               </Link>
               <Link
                 to="/register"
-                className="block px-4 py-3 text-black hover:bg-gray-100"
+                className="block border-t border-slate-800 px-2 py-2 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
               >
                 Sign up
               </Link>
