@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import logo from "../assets/logo.png";
+import logo from "../assets/logo.jpg";
 import ProfileButton from "./ProfileButton";
 
 export default function Navbar({ onSearch }) {
