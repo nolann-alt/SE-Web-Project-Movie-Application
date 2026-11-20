@@ -24,9 +24,34 @@ async function requestMovies(endpoint) {
   return data.results;
 }
 
+async function requestMovie(endpoint) {
+  const response = await fetch(`${BASE_URL}${endpoint}&api_key=${API_KEY}`);
+
+  if (!response.ok) {
+    throw new Error("TMDB answered with status " + response.status);
+  }
+
+  return response.json();
+}
+
 // Get the popular movies
 export function getPopularMovies() {
   return requestMovies("/movie/popular?");
+}
+
+// Get movies currently playing in cinemas
+export function getNowPlayingMovies() {
+  return requestMovies("/movie/now_playing?language=en-US&page=1");
+}
+
+// Get the five best weekly trending movies
+export function getWeeklyTrendingMovies() {
+  return requestMovies("/trending/movie/week?language=en-US");
+}
+
+// Get one movie for its detail page
+export function getMovieDetails(movieId) {
+  return requestMovie(`/movie/${movieId}?language=en-US`);
 }
 
 // Search movies with the text of the user

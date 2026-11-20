@@ -1,1 +1,65 @@
 @import "tailwindcss";
+
+@keyframes carousel-in-next {
+  from {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes carousel-out-next {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes carousel-in-previous {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes carousel-out-previous {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.carousel-in-next,
+.carousel-out-next,
+.carousel-in-previous,
+.carousel-out-previous {
+  animation-duration: 700ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+  will-change: transform, opacity;
+}
+
+.carousel-in-next {
+  animation-name: carousel-in-next;
+}
+
+.carousel-out-next {
+  animation-name: carousel-out-next;
+}
+
+.carousel-in-previous {
+  animation-name: carousel-in-previous;
+}
+
+.carousel-out-previous {
+  animation-name: carousel-out-previous;
+}
