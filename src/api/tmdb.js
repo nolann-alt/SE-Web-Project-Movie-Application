@@ -39,6 +39,11 @@ export function getPopularMovies() {
   return requestMovies("/movie/popular?");
 }
 
+// Get movies from one genre
+export function getMoviesByGenre(genreId) {
+  return requestMovies(`/discover/movie?with_genres=${genreId}&language=en-US&sort_by=popularity.desc&page=1`);
+}
+
 // Get movies currently playing in cinemas
 export function getNowPlayingMovies() {
   return requestMovies("/movie/now_playing?language=en-US&page=1");
