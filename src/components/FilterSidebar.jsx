@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-// Only a design for now, it does not filter yet
 export default function FilterSidebar() {
   const sidebarRef = useRef(null);
   const documentTopRef = useRef(null);
