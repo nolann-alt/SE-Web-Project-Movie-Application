@@ -78,7 +78,7 @@ export default function Hero() {
     return (
       <article
         key={movie.id}
-        className={`absolute inset-0 min-h-64 overflow-hidden bg-slate-950 ${animationClass}`}
+        className={`absolute inset-0 min-h-56 overflow-hidden bg-slate-950 ${animationClass}`}
         style={{
           backgroundImage: `url(https://image.tmdb.org/t/p/w1280${movie.backdrop_path || movie.poster_path})`,
           backgroundPosition: "center",
@@ -87,15 +87,15 @@ export default function Hero() {
       >
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/55 to-slate-950/5" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-slate-950/10" />
-        <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.25)]" />
-        <div className="relative flex min-h-64 max-w-xl flex-col justify-center px-20 py-6">
-          <h3 className="text-4xl font-black tracking-tight drop-shadow-lg">{movie.title}</h3>
-          <p className="mt-3 line-clamp-3 max-w-lg text-sm leading-6 text-slate-100/90 drop-shadow">
+        <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.35),inset_0_-24px_40px_rgba(0,0,0,0.18)]" />
+        <div className="relative flex min-h-56 max-w-xl flex-col justify-center px-20 py-3">
+          <h3 className="text-3xl font-black tracking-tight drop-shadow-[0_5px_12px_rgba(0,0,0,0.65)]">{movie.title}</h3>
+          <p className="mt-2 line-clamp-2 max-w-lg text-sm leading-5 text-slate-100/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
             {movie.overview || "Discover more about this movie."}
           </p>
           <Link
             to={`/movie/${movie.id}`}
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-sky-400 px-5 py-2 font-semibold text-slate-950 transition hover:bg-sky-300"
+            className="mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-sky-400 px-5 py-2 font-semibold text-slate-950 shadow-[0_8px_24px_rgba(2,6,23,0.35)] transition hover:bg-sky-300 hover:shadow-[0_10px_28px_rgba(2,6,23,0.45)]"
           >
             Discover <span aria-hidden="true">→</span>
           </Link>
@@ -105,14 +105,14 @@ export default function Hero() {
   }
 
   return (
-    <section className="w-full bg-transparent">
+    <section className="w-full border-b border-slate-800/80 bg-transparent shadow-[0_12px_30px_rgba(2,6,23,0.24)]">
       {discoverError && <p className="text-sm text-red-300">{discoverError}</p>}
       {!discoverError && discoverMovies.length === 0 && (
         <p className="text-sm text-slate-400">Loading films...</p>
       )}
       <div
         aria-label="Discover new films"
-        className="relative min-h-64 touch-pan-y overscroll-x-none overflow-hidden"
+        className="relative min-h-56 touch-pan-y overscroll-x-none overflow-hidden"
       >
         {discoverMovies.length > 0 && (
           <>
@@ -131,7 +131,7 @@ export default function Hero() {
               type="button"
               onClick={showPreviousMovie}
               aria-label="Previous movie"
-              className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:bg-white/20 hover:shadow-[0_10px_28px_rgba(0,0,0,0.45)]"
             >
               <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m15 19-7-7 7-7" />
@@ -141,7 +141,7 @@ export default function Hero() {
               type="button"
               onClick={showNextMovie}
               aria-label="Next movie"
-              className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:bg-white/20 hover:shadow-[0_10px_28px_rgba(0,0,0,0.45)]"
             >
               <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />

@@ -202,7 +202,7 @@ export default function App() {
                         {category.title}
                       </h2>
                     </div>
-                    <div className="category-scroll relative isolate flex gap-4 overflow-x-auto px-1 pb-3">
+                    <div className="category-scroll relative isolate flex gap-4 overflow-x-auto px-1 pb-1">
                       {sortMovies(category.movies).slice(0, 20).map((movie) => (
                         <MovieCard key={movie.id} movie={movie} inCategoryRow />
                       ))}

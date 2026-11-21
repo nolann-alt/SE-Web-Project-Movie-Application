@@ -18,12 +18,12 @@ function ProfileButton() {
     <div className="relative inline-block">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="cursor-pointer border-none bg-transparent"
+        className="group cursor-pointer rounded-full border-none bg-transparent transition-transform duration-300 hover:scale-110"
       >
         <img
           src={profileImage}
           alt="Profile"
-          className="h-14 w-14 object-contain"
+          className="h-10 w-10 rounded-full object-cover transition group-hover:ring-2 group-hover:ring-sky-300/80 group-hover:ring-offset-2 group-hover:ring-offset-slate-950"
         />
       </button>
 

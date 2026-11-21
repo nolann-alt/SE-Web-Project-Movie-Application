@@ -1,59 +1,106 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import logo from "../assets/logo.jpg";
 import ProfileButton from "./ProfileButton";
+import { searchMovies } from "../api/tmdb";
 
 export default function Navbar({ onSearch }) {
   const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionTimer = useRef(null);
+  const searchFormRef = useRef(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (
+        searchFormRef.current &&
+        !searchFormRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    return () =>
+      document.removeEventListener("pointerdown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+
+    clearTimeout(suggestionTimer.current);
+    if (trimmedQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    suggestionTimer.current = setTimeout(() => {
+      searchMovies(trimmedQuery)
+        .then((movies) => {
+          setSuggestions(movies.slice(0, 6));
+          setShowSuggestions(true);
+        })
+        .catch(() => {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        });
+    }, 300);
+
+    return () => clearTimeout(suggestionTimer.current);
+  }, [query]);
 
   function handleSubmit(e) {
     e.preventDefault(); // do not reload the page
+    setShowSuggestions(false);
     if (onSearch) {
       onSearch(query);
     }
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur-md sm:px-6">
-      <div className="flex w-full items-center gap-4">
+    <header className="sticky top-0 z-40 border-b border-sky-950/70 bg-slate-950/90 px-4 py-2 shadow-[0_8px_24px_rgba(2,6,23,0.38)] backdrop-blur-xl sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-5">
         <Link to="/" className="group shrink-0">
           <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
-            <img src={logo} alt="FilmSphere logo" className="h-14 w-14 object-contain" />
-            <h1 className="text-xl font-black tracking-tight text-sky-400 sm:text-2xl">
+            <img src={logo} alt="FilmSphere logo" className="h-12 w-12 object-contain" />
+            <h1 className="text-xl font-black tracking-tight text-sky-300 sm:text-2xl">
               Film<span className="text-white">Sphere</span>
             </h1>
           </div>
         </Link>
 
-        <nav className="ml-auto hidden items-center gap-1 rounded-full bg-slate-900 p-1 text-sm md:flex">
+        <nav className="ml-auto hidden items-center gap-6 text-sm md:flex">
           <Link
             to="/"
-            className="rounded-full px-4 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="py-2 text-slate-200 transition hover:text-sky-300"
           >
             Home
           </Link>
           <Link
             to="/watchlist"
-            className="rounded-full px-4 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="py-2 text-slate-200 transition hover:text-sky-300"
           >
             WatchList
           </Link>
           <Link
             to="/favorites"
-            className="rounded-full px-4 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="py-2 text-slate-200 transition hover:text-sky-300"
           >
             Favorites
           </Link>
         </nav>
 
         <form
+          ref={searchFormRef}
           onSubmit={handleSubmit}
-          className="group flex min-w-0 flex-1 items-center sm:max-w-sm"
+          className="group relative flex min-w-0 flex-1 items-center sm:max-w-sm"
         >
           <label htmlFor="movie-search" className="sr-only">
             Search movies
           </label>
-          <div className="flex w-full items-center rounded-full border border-slate-700 bg-slate-900 px-4 transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-400/20">
+          <div className="flex w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-4 shadow-inner transition focus-within:border-sky-300/70 focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-sky-400/15">
             <svg
               aria-hidden="true"
               className="mr-2 h-4 w-4 shrink-0 text-slate-400"
@@ -79,6 +126,39 @@ export default function Navbar({ onSearch }) {
               Enter
             </kbd>
           </div>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl shadow-black/40">
+              {suggestions.map((movie) => (
+                <Link
+                  key={movie.id}
+                  to={`/movie/${movie.id}`}
+                  onClick={() => setShowSuggestions(false)}
+                  className="flex items-center gap-3 px-3 py-2 transition hover:bg-slate-800"
+                >
+                  {movie.poster_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
+                      alt=""
+                      className="h-12 w-8 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-8 items-center justify-center rounded bg-slate-700 text-[8px] text-slate-400">
+                      N/A
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">{movie.title}</p>
+                    {movie.release_date && (
+                      <p className="mt-0.5 text-xs text-sky-300">
+                        {movie.release_date.slice(0, 4)}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </form>
 
         <ProfileButton />
