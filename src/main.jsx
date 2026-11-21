@@ -5,6 +5,8 @@ import App from "./App.jsx";
 import LogIn from "./pages/LogIn.jsx";
 import Register from "./pages/Register.jsx";
 import MovieDetails from "./pages/MovieDetails.jsx";
+import WatchList from "./pages/WatchList.jsx";
+import Favorites from "./pages/Favorites.jsx";
 
 createRoot(document.getElementById('root')).render(
   <HashRouter>
@@ -13,6 +15,8 @@ createRoot(document.getElementById('root')).render(
       <Route path="/login" element={<LogIn />} />
       <Route path="/register" element={<Register />} />
       <Route path="/movie/:movieId" element={<MovieDetails />} />
+      <Route path="/watchlist" element={<WatchList />} />
+      <Route path="/favorites" element={<Favorites />} />
     </Routes>
   </HashRouter>,
 );

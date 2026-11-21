@@ -81,7 +81,9 @@ export function getWeeklyTrendingMovies(page = 1) {
 
 // Get one movie for its detail page
 export function getMovieDetails(movieId) {
-  return requestMovie(`/movie/${movieId}?language=en-US`);
+  return requestMovie(
+    `/movie/${movieId}?language=en-US&append_to_response=credits,videos,release_dates`
+  );
 }
 
 // Search movies with the text of the user

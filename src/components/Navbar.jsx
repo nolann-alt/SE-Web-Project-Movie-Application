@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import logo from "../assets/logo.jpg";
 import ProfileButton from "./ProfileButton";
 import { searchMovies } from "../api/tmdb";
+import { getFavorites, getWatchlist } from "../services/movieLists";
 
 export default function Navbar({ onSearch }) {
   const [query, setQuery] = useState("");
@@ -10,6 +11,18 @@ export default function Navbar({ onSearch }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionTimer = useRef(null);
   const searchFormRef = useRef(null);
+  const [watchlistCount, setWatchlistCount] = useState(getWatchlist().length);
+  const [favoritesCount, setFavoritesCount] = useState(getFavorites().length);
+
+  useEffect(() => {
+    function updateCounts() {
+      setWatchlistCount(getWatchlist().length);
+      setFavoritesCount(getFavorites().length);
+    }
+    window.addEventListener("filmsphere-library-updated", updateCounts);
+    return () =>
+      window.removeEventListener("filmsphere-library-updated", updateCounts);
+  }, []);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -83,12 +96,22 @@ export default function Navbar({ onSearch }) {
             className="py-2 text-slate-200 transition hover:text-sky-300"
           >
             WatchList
+            {watchlistCount > 0 && (
+              <span className="ml-2 rounded-full bg-sky-400/15 px-2 py-0.5 text-xs text-sky-300">
+                {watchlistCount}
+              </span>
+            )}
           </Link>
           <Link
             to="/favorites"
             className="py-2 text-slate-200 transition hover:text-sky-300"
           >
             Favorites
+            {favoritesCount > 0 && (
+              <span className="ml-2 rounded-full bg-rose-400/15 px-2 py-0.5 text-xs text-rose-300">
+                {favoritesCount}
+              </span>
+            )}
           </Link>
         </nav>
 
