@@ -21,7 +21,18 @@ async function requestMovies(endpoint) {
     throw new Error("TMDB returned an invalid movie list");
   }
 
-  return data.results;
+  const today = new Date();
+  const todayString = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  return data.results.filter(
+    (movie) =>
+      Boolean(movie.release_date) &&
+      movie.release_date <= todayString
+  );
 }
 
 async function requestMovie(endpoint) {
@@ -35,23 +46,23 @@ async function requestMovie(endpoint) {
 }
 
 // Get the popular movies
-export function getPopularMovies() {
-  return requestMovies("/movie/popular?");
+export function getPopularMovies(page = 1) {
+  return requestMovies(`/movie/popular?language=en-US&page=${page}`);
 }
 
 // Get movies from one genre
-export function getMoviesByGenre(genreId) {
-  return requestMovies(`/discover/movie?with_genres=${genreId}&language=en-US&sort_by=popularity.desc&page=1`);
+export function getMoviesByGenre(genreId, page = 1) {
+  return requestMovies(`/discover/movie?with_genres=${genreId}&language=en-US&sort_by=popularity.desc&page=${page}`);
 }
 
 // Get movies currently playing in cinemas
-export function getNowPlayingMovies() {
-  return requestMovies("/movie/now_playing?language=en-US&page=1");
+export function getNowPlayingMovies(page = 1) {
+  return requestMovies(`/movie/now_playing?language=en-US&page=${page}`);
 }
 
 // Get the five best weekly trending movies
-export function getWeeklyTrendingMovies() {
-  return requestMovies("/trending/movie/week?language=en-US");
+export function getWeeklyTrendingMovies(page = 1) {
+  return requestMovies(`/trending/movie/week?language=en-US&page=${page}`);
 }
 
 // Get one movie for its detail page

@@ -26,7 +26,7 @@ export default function FilterSidebar({
         ref={sidebarRef}
         className="sticky top-24 z-30 h-fit max-h-[calc(100vh-112px)] w-48 overflow-hidden rounded-2xl border border-slate-700/70 bg-gradient-to-br from-slate-800/95 to-slate-900/90 px-4 pt-4 pb-6 shadow-[0_12px_40px_rgba(2,6,23,0.22)] backdrop-blur-sm"
       >
-        <h2 className="mb-4 border-l-4 border-sky-400 pl-3 text-base font-bold tracking-tight text-slate-100">
+        <h2 className="mb-6 border-l-4 border-sky-400 pl-3 text-base font-bold tracking-tight text-slate-100">
           Filter Movies
         </h2>
 
