@@ -30,10 +30,17 @@ export default function MovieCard({ movie, inCategoryRow = false }) {
         <h3 className="truncate text-sm font-semibold text-slate-100 transition-colors group-hover:text-sky-300">
           {movie.title}
         </h3>
-        <p className="mt-1.5 inline-flex items-center rounded-full bg-amber-400/10 px-2 py-1 text-xs font-medium text-amber-300">
-          <span aria-hidden="true" className="mr-1">★</span>
-          {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
-        </p>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <p className="inline-flex items-center rounded-full bg-amber-400/10 px-2 py-1 text-xs font-medium text-amber-300">
+            <span aria-hidden="true" className="mr-1">★</span>
+            {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
+          </p>
+          {movie.release_date && (
+            <p className="rounded-full bg-sky-400/10 px-2 py-1 text-xs font-medium text-sky-300">
+              {new Date(`${movie.release_date}T00:00:00`).getFullYear()}
+            </p>
+          )}
+        </div>
       </div>
     </Link>
   );
