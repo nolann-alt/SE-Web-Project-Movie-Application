@@ -3,7 +3,7 @@ const BASE_URL = "https://api.themoviedb.org/3";
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
 // Send a request to TMDB and return the movie results
-async function requestMovies(endpoint) {
+async function requestMovies(endpoint, minimumReleaseDate = null) {
   const response = await fetch(
     `${BASE_URL}${endpoint}&api_key=${API_KEY}`
   );
@@ -31,7 +31,8 @@ async function requestMovies(endpoint) {
   return data.results.filter(
     (movie) =>
       Boolean(movie.release_date) &&
-      movie.release_date <= todayString
+      movie.release_date <= todayString &&
+      (!minimumReleaseDate || movie.release_date >= minimumReleaseDate)
   );
 }
 
@@ -57,7 +58,20 @@ export function getMoviesByGenre(genreId, page = 1) {
 
 // Get movies currently playing in cinemas
 export function getNowPlayingMovies(page = 1) {
-  return requestMovies(`/movie/now_playing?language=en-US&page=${page}`);
+  const today = new Date();
+  const oldestAllowedDate = new Date(today);
+  oldestAllowedDate.setDate(today.getDate() - 120);
+
+  const oldestAllowedDateString = [
+    oldestAllowedDate.getFullYear(),
+    String(oldestAllowedDate.getMonth() + 1).padStart(2, "0"),
+    String(oldestAllowedDate.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  return requestMovies(
+    `/movie/now_playing?language=en-US&page=${page}`,
+    oldestAllowedDateString
+  );
 }
 
 // Get the five best weekly trending movies
