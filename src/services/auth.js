@@ -15,6 +15,11 @@ function saveUsers(users) {
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 }
 
+function notifyAuthUpdated() {
+  window.dispatchEvent(new Event("filmsphere-auth-updated"));
+  window.dispatchEvent(new Event("filmsphere-library-updated"));
+}
+
 export function registerUser(email, password) {
   const normalizedEmail = email.trim().toLowerCase();
   const users = readUsers();
@@ -25,6 +30,7 @@ export function registerUser(email, password) {
 
   saveUsers([...users, { email: normalizedEmail, password }]);
   localStorage.setItem(CURRENT_USER_STORAGE_KEY, normalizedEmail);
+  notifyAuthUpdated();
 
   return { success: true };
 }
@@ -41,6 +47,7 @@ export function loginUser(email, password) {
   }
 
   localStorage.setItem(CURRENT_USER_STORAGE_KEY, user.email);
+  notifyAuthUpdated();
   return { success: true };
 }
 
@@ -50,4 +57,5 @@ export function getCurrentUser() {
 
 export function logoutUser() {
   localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+  notifyAuthUpdated();
 }

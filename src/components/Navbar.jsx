@@ -20,8 +20,11 @@ export default function Navbar({ onSearch }) {
       setFavoritesCount(getFavorites().length);
     }
     window.addEventListener("filmsphere-library-updated", updateCounts);
-    return () =>
+    window.addEventListener("filmsphere-auth-updated", updateCounts);
+    return () => {
       window.removeEventListener("filmsphere-library-updated", updateCounts);
+      window.removeEventListener("filmsphere-auth-updated", updateCounts);
+    };
   }, []);
 
   useEffect(() => {

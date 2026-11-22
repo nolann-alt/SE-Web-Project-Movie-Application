@@ -26,6 +26,7 @@ export default function MovieDetails() {
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(8);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
+  const [accountPromptMessage, setAccountPromptMessage] = useState("");
 
   useEffect(() => {
     setError("");
@@ -41,11 +42,45 @@ export default function MovieDetails() {
     setReviews(getMovieReviews(movieId));
   }, [movieId]);
 
+  useEffect(() => {
+    function updateLibraryState() {
+      setInWatchlist(getWatchlist().includes(String(movieId)));
+      setIsFavorite(getFavorites().includes(String(movieId)));
+    }
+    window.addEventListener("filmsphere-auth-updated", updateLibraryState);
+    window.addEventListener("filmsphere-library-updated", updateLibraryState);
+    return () => {
+      window.removeEventListener("filmsphere-auth-updated", updateLibraryState);
+      window.removeEventListener("filmsphere-library-updated", updateLibraryState);
+    };
+  }, [movieId]);
+
+  function requireAccount(message) {
+    setAccountPromptMessage(message);
+    setShowAccountPrompt(true);
+  }
+
+  function handleWatchlist() {
+    if (!getCurrentUser()) {
+      requireAccount("Log in or create an account before saving movies to your WatchList.");
+      return;
+    }
+    setInWatchlist(toggleWatchlistMovie(movieId));
+  }
+
+  function handleFavorite() {
+    if (!getCurrentUser()) {
+      requireAccount("Log in or create an account before adding movies to your favorites.");
+      return;
+    }
+    setIsFavorite(toggleFavoriteMovie(movieId));
+  }
+
   function handleReviewSubmit(event) {
     event.preventDefault();
     const currentUser = getCurrentUser();
     if (!currentUser) {
-      setShowAccountPrompt(true);
+      requireAccount("Log in or create an account before posting your review.");
       return;
     }
 
@@ -184,7 +219,7 @@ export default function MovieDetails() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setInWatchlist(toggleWatchlistMovie(movieId))}
+                    onClick={handleWatchlist}
                     className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                       inWatchlist
                         ? "border-sky-400 bg-sky-400/20 text-sky-300"
@@ -195,7 +230,7 @@ export default function MovieDetails() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsFavorite(toggleFavoriteMovie(movieId))}
+                    onClick={handleFavorite}
                     className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                       isFavorite
                         ? "border-rose-400 bg-rose-400/20 text-rose-300"
@@ -371,7 +406,7 @@ export default function MovieDetails() {
             </div>
             <h2 id="review-account-title" className="text-xl font-bold text-white">An account is required</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Log in or create an account before posting your review.
+              {accountPromptMessage || "Log in or create an account to continue."}
             </p>
             <div className="mt-6 flex gap-3">
               <Link
