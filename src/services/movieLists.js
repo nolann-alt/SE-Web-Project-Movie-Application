@@ -3,6 +3,8 @@ import { getCurrentUser } from "./auth";
 const MOVIE_LISTS_KEY = "filmsphere-movie-lists";
 const WATCHLIST_STATUSES_KEY = "filmsphere-watchlist-statuses";
 const REVIEWS_KEY = "filmsphere_reviews";
+const FAVORITE_METADATA_KEY = "filmsphere-favorite-metadata";
+const PINNED_FAVORITE_KEY = "filmsphere-pinned-favorite";
 
 function readIds(key) {
   try {
@@ -139,4 +141,73 @@ export function addMovieReview(movieId, review) {
   const key = String(movieId);
   allReviews[key] = [review, ...(Array.isArray(allReviews[key]) ? allReviews[key] : [])];
   localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
+}
+
+export function getFavoriteMetadata(movieId) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return { rating: 8, review: "" };
+
+  try {
+    const allMetadata = JSON.parse(
+      localStorage.getItem(FAVORITE_METADATA_KEY) || "{}",
+    );
+    return allMetadata[currentUser]?.[String(movieId)] || { rating: 8, review: "" };
+  } catch {
+    return { rating: 8, review: "" };
+  }
+}
+
+export function setFavoriteMetadata(movieId, metadata) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return false;
+
+  let allMetadata = {};
+  try {
+    allMetadata = JSON.parse(
+      localStorage.getItem(FAVORITE_METADATA_KEY) || "{}",
+    );
+  } catch {
+    allMetadata = {};
+  }
+
+  allMetadata[currentUser] = {
+    ...allMetadata[currentUser],
+    [String(movieId)]: metadata,
+  };
+  localStorage.setItem(FAVORITE_METADATA_KEY, JSON.stringify(allMetadata));
+  window.dispatchEvent(new Event("filmsphere-library-updated"));
+  return true;
+}
+
+export function getPinnedFavorite() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return null;
+
+  try {
+    const pinned = JSON.parse(
+      localStorage.getItem(PINNED_FAVORITE_KEY) || "{}",
+    );
+    return pinned[currentUser] ? String(pinned[currentUser]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setPinnedFavorite(movieId) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return false;
+
+  let pinned = {};
+  try {
+    pinned = JSON.parse(
+      localStorage.getItem(PINNED_FAVORITE_KEY) || "{}",
+    );
+  } catch {
+    pinned = {};
+  }
+
+  pinned[currentUser] = movieId ? String(movieId) : null;
+  localStorage.setItem(PINNED_FAVORITE_KEY, JSON.stringify(pinned));
+  window.dispatchEvent(new Event("filmsphere-library-updated"));
+  return true;
 }

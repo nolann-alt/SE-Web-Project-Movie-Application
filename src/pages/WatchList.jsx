@@ -152,7 +152,15 @@ export default function WatchList() {
     if (!ids.includes(id)) {
       toggleWatchlistMovie(id);
     }
-    setMovies((current) => [...current, removedMovie.movie]);
+    setMovies((current) => {
+      const next = [...current];
+      const targetIndex = Math.min(
+        removedMovie.index >= 0 ? removedMovie.index : next.length,
+        next.length,
+      );
+      next.splice(targetIndex, 0, removedMovie.movie);
+      return next;
+    });
     setRemovedMovie(null);
     setToast("Movie restored to WatchList");
   }
@@ -339,13 +347,13 @@ function StatCard({ icon, label, value, tone }) {
     amber: "border-amber-500/20 bg-amber-500/10 text-amber-400",
   };
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-4">
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 sm:gap-4 sm:p-4">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${tones[tone]}`}>
         {icon}
       </div>
-      <div>
+      <div className="min-w-0">
         <span className="block text-xs font-medium text-slate-400">{label}</span>
-        <span className="text-lg font-bold text-white">{value}</span>
+        <span className="block truncate text-base font-bold text-white sm:text-lg">{value}</span>
       </div>
     </div>
   );
@@ -393,19 +401,20 @@ function GridMovieCard({ movie, favorite, onStatus, onFavorite, onRemove }) {
           <span>{year}</span>
         </div>
       </div>
-      <Link to={`/movie/${movie.id}`} className="flex flex-1 flex-col justify-between p-4">
-        <h2 className="line-clamp-1 text-base font-bold text-white group-hover:text-sky-400">{movie.title}</h2>
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-xs font-bold text-amber-300">★ {(movie.vote_average || 0).toFixed(1)}</span>
-          <span className="text-xs text-slate-500">•</span>
-          <span className="text-xs text-slate-300">{year}</span>
+      <div className="flex min-h-[168px] flex-1 flex-col p-4">
+        <Link to={`/movie/${movie.id}`}>
+          <h2 className="h-12 line-clamp-2 text-base font-bold leading-6 text-white transition-colors group-hover:text-sky-400">{movie.title}</h2>
+        </Link>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-xs font-bold text-amber-300">★ {(movie.vote_average || 0).toFixed(1)}</span>
+          <span className="rounded-md border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-300">{year}</span>
         </div>
-        <div className="flex flex-wrap gap-1 pt-3">
+        <div className="mt-auto flex min-h-10 flex-wrap content-end items-end gap-1 pt-3">
           {movie.genres?.slice(0, 3).map((genre) => (
             <span key={genre.id} className="rounded border border-slate-700 bg-[#0D1520] px-2 py-0.5 text-[10px] text-slate-400">{genre.name}</span>
           ))}
         </div>
-      </Link>
+      </div>
     </article>
   );
 }
@@ -415,8 +424,8 @@ function ListMovieRow({ movie, favorite, onStatus, onFavorite, onRemove }) {
   const year = movie.release_date ? movie.release_date.slice(0, 4) : "N/A";
   const director = movie.credits?.crew?.find((person) => person.job === "Director");
   return (
-    <article className="group flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700/80 bg-slate-900 p-4 transition duration-300 hover:border-sky-400/40 hover:bg-slate-800 sm:flex-row sm:items-center">
-      <div className="flex flex-1 items-center gap-4">
+    <article className="group flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700/80 bg-slate-900 p-4 transition duration-300 hover:border-sky-400/40 hover:bg-slate-800 lg:flex-row lg:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
         <Link to={`/movie/${movie.id}`} className="h-28 w-20 shrink-0 overflow-hidden rounded-xl">
           {poster ? <img src={poster} alt={movie.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-slate-800 text-xs text-slate-500">N/A</div>}
         </Link>

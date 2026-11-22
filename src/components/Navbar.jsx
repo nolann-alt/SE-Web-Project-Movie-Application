@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import logo from "../assets/logo.jpg";
 import ProfileButton from "./ProfileButton";
 import { searchMovies } from "../api/tmdb";
 import { getFavorites, getWatchlist } from "../services/movieLists";
 
 export default function Navbar({ onSearch }) {
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -90,13 +91,21 @@ export default function Navbar({ onSearch }) {
         <nav className="ml-auto hidden items-center gap-6 text-sm md:flex">
           <Link
             to="/"
-            className="py-2 text-slate-200 transition hover:text-sky-300"
+            className={`relative py-2 transition ${
+              location.pathname === "/"
+                ? "text-sky-300 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-sky-400"
+                : "text-slate-200 hover:text-sky-300"
+            }`}
           >
             Home
           </Link>
           <Link
             to="/watchlist"
-            className="py-2 text-slate-200 transition hover:text-sky-300"
+            className={`relative py-2 transition ${
+              location.pathname === "/watchlist"
+                ? "text-sky-300 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-sky-400"
+                : "text-slate-200 hover:text-sky-300"
+            }`}
           >
             WatchList
             {watchlistCount > 0 && (
@@ -107,7 +116,11 @@ export default function Navbar({ onSearch }) {
           </Link>
           <Link
             to="/favorites"
-            className="py-2 text-slate-200 transition hover:text-sky-300"
+            className={`relative py-2 transition ${
+              location.pathname === "/favorites"
+                ? "text-rose-400 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-rose-500"
+                : "text-slate-200 hover:text-rose-300"
+            }`}
           >
             Favorites
             {favoritesCount > 0 && (
