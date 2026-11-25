@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { getSupabaseClient, supabase } from "./supabaseClient";
 import { createAuthStore } from "./authStore";
+import { getPasswordValidationError } from "../utils/passwordPolicy";
 
 const authStore = createAuthStore(supabase);
 
@@ -18,6 +19,11 @@ export function useAuth() {
 }
 
 export async function registerUser(email, password, username) {
+  const passwordError = getPasswordValidationError(password);
+  if (passwordError) {
+    return { success: false, error: passwordError };
+  }
+
   const normalizedUsername = username.trim().toLowerCase();
   if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
     return {

@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { MIN_PASSWORD_LENGTH } from "../utils/passwordPolicy";
 
 export default function AuthForm({
   isLogin,
@@ -78,10 +79,15 @@ export default function AuthForm({
               value={password}
               onChange={(event) => onPasswordChange(event.target.value)}
               required
-              minLength="6"
+              minLength={isLogin ? undefined : MIN_PASSWORD_LENGTH}
               autoComplete={isLogin ? "current-password" : "new-password"}
               className="w-full rounded-lg border border-slate-600 bg-slate-900 px-4 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400"
             />
+            {!isLogin && (
+              <p className="mt-1 text-xs text-slate-400">
+                Use at least {MIN_PASSWORD_LENGTH} characters, including uppercase and lowercase letters, a number, and a symbol.
+              </p>
+            )}
           </div>
 
           {error && (
