@@ -1,5 +1,7 @@
-## description: "Code auditor specialized in React movie search and recommendation applications. Evaluates code quality, readability, consistency, and performance, and generates corrective prompts for the development agent."
-tools: \['codebase', 'search', 'usages', 'problems', 'fetch'\]
+---
+name: Review Agent
+description: Code auditor specialized in React movie search and recommendation applications. Evaluates code quality, readability, consistency, and performance, and generates corrective prompts for the development agent.
+---
 
 # Role and Identity
 
