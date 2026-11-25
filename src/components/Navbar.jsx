@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import logo from "../assets/logo.jpg";
 import ProfileButton from "./ProfileButton";
-import { searchMovies } from "../api/tmdb";
+import { isAbortError, searchMovies } from "../api/tmdb";
 import { getFavorites, getWatchlist } from "../services/movieLists";
 
 export default function Navbar({ onSearch }) {
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [suggestionError, setSuggestionError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionTimer = useRef(null);
   const searchFormRef = useRef(null);
@@ -45,27 +46,35 @@ export default function Navbar({ onSearch }) {
 
   useEffect(() => {
     const trimmedQuery = query.trim();
+    const controller = new AbortController();
 
     clearTimeout(suggestionTimer.current);
+    setShowSuggestions(false);
+    setSuggestionError("");
     if (trimmedQuery.length < 2) {
       setSuggestions([]);
-      setShowSuggestions(false);
-      return;
+      return () => controller.abort();
     }
 
     suggestionTimer.current = setTimeout(() => {
-      searchMovies(trimmedQuery)
+      searchMovies(trimmedQuery, controller.signal)
         .then((movies) => {
+          if (controller.signal.aborted) return;
           setSuggestions(movies.slice(0, 6));
           setShowSuggestions(true);
         })
-        .catch(() => {
+        .catch((error) => {
+          if (controller.signal.aborted || isAbortError(error)) return;
           setSuggestions([]);
-          setShowSuggestions(false);
+          setSuggestionError("Unable to load search suggestions.");
+          setShowSuggestions(true);
         });
     }, 300);
 
-    return () => clearTimeout(suggestionTimer.current);
+    return () => {
+      clearTimeout(suggestionTimer.current);
+      controller.abort();
+    };
   }, [query]);
 
   function handleSubmit(e) {
@@ -166,8 +175,13 @@ export default function Navbar({ onSearch }) {
             </kbd>
           </div>
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && (suggestions.length > 0 || suggestionError) && (
             <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl shadow-black/40">
+              {suggestionError && (
+                <p role="alert" className="px-3 py-2 text-sm text-red-300">
+                  {suggestionError}
+                </p>
+              )}
               {suggestions.map((movie) => (
                 <Link
                   key={movie.id}

@@ -3,7 +3,8 @@ import { Link } from "react-router";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { getMovieDetails } from "../api/tmdb";
-import { getCurrentUser } from "../services/auth";
+import { useAuth } from "../services/auth";
+import { loadMoviesIndividually } from "../utils/loadMoviesIndividually";
 import {
   getFavorites,
   getFavoriteMetadata,
@@ -29,9 +30,12 @@ function formatRuntime(minutes) {
 }
 
 export default function Favorites() {
-  const currentUser = getCurrentUser();
+  const { user, isLoading: isAuthLoading, error: authError } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [failedMovieCount, setFailedMovieCount] = useState(0);
+  const [loadError, setLoadError] = useState("");
   const [query, setQuery] = useState("");
   const [genreFilter, setGenreFilter] = useState("All");
   const [sortBy, setSortBy] = useState("personal_rating_desc");
@@ -45,36 +49,72 @@ export default function Favorites() {
   const [editReview, setEditReview] = useState("");
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (isAuthLoading) return undefined;
+    if (!currentUserId) {
+      setMovies([]);
+      setFailedMovieCount(0);
+      setLoadError("");
+      setWatchlistIds([]);
+      setPinnedId(null);
+      setLoading(false);
+      return undefined;
+    }
 
     const ids = getFavorites();
+    setWatchlistIds(getWatchlist());
     setLoading(true);
+    setMovies([]);
+    setFailedMovieCount(0);
+    setLoadError("");
     if (ids.length === 0) {
       setMovies([]);
       setLoading(false);
       setPinnedId(null);
       setPinnedFavorite(null);
-      return;
+      return undefined;
     }
 
-    Promise.all(ids.map((id) => getMovieDetails(id)))
-      .then((loadedMovies) => {
-        const withMetadata = loadedMovies.map((movie) => ({
-          ...movie,
-          personal: getFavoriteMetadata(movie.id),
-        }));
+    let isActive = true;
+    loadMoviesIndividually(ids, async (id) => {
+      const movie = await getMovieDetails(id);
+      return {
+        ...movie,
+        personal: getFavoriteMetadata(movie.id),
+      };
+    })
+      .then(({ movies: withMetadata, failedCount }) => {
+        if (!isActive) return;
         setMovies(withMetadata);
+        setFailedMovieCount(failedCount);
+        if (failedCount > 0) {
+          setLoadError("Some favorite movies could not be loaded.");
+        }
+
+        if (withMetadata.length === 0) {
+          setPinnedId(null);
+          return;
+        }
 
         const savedPinnedId = getPinnedFavorite();
+        const savedPinnedMovieIsInCollection = ids.includes(savedPinnedId);
         const validPinnedId = withMetadata.some((movie) => String(movie.id) === savedPinnedId)
           ? savedPinnedId
-          : String(withMetadata[0].id);
+          : savedPinnedMovieIsInCollection
+            ? savedPinnedId
+            : String(withMetadata[0].id);
         setPinnedId(validPinnedId);
         if (!savedPinnedId) setPinnedFavorite(validPinnedId);
       })
-      .catch(() => setMovies([]))
-      .finally(() => setLoading(false));
-  }, [currentUser]);
+      .catch(() => {
+        if (isActive) setLoadError("Unable to load your favorite movies.");
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [currentUserId, isAuthLoading]);
 
   useEffect(() => {
     function updateLibrary() {
@@ -206,7 +246,20 @@ export default function Favorites() {
     setEditingMovie(null);
   }
 
-  if (!currentUser) {
+  if (isAuthLoading || authError) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <Navbar />
+        <main className="mx-auto max-w-md px-4 py-20 text-center">
+          <p role={authError ? "alert" : undefined} className={authError ? "text-red-300" : "text-slate-400"}>
+            {authError ? "Unable to restore your session. Refresh the page to try again." : "Restoring your session..."}
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!currentUserId) {
     return (
       <div className="min-h-screen bg-slate-950 text-white">
         <Navbar />
@@ -242,6 +295,15 @@ export default function Favorites() {
             <FavoriteStat icon={<Icon><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 6V4h8v2M8 18v2M16 18v2" /></Icon>} label="Top Director" value={topDirector ? topDirector[0] : "N/A"} tone="purple" />
           </div>
         </section>
+
+        {loadError && movies.length > 0 && (
+          <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {loadError} {movies.length > 0
+              ? "The movies that loaded are still shown."
+              : "Your Favorites are not empty; please try again later."}
+            {failedMovieCount > 0 && ` (${failedMovieCount} failed).`}
+          </p>
+        )}
 
         {!loading && pinnedMovie && (
           <section className="relative overflow-hidden rounded-3xl border border-rose-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 shadow-2xl">
@@ -318,6 +380,11 @@ export default function Favorites() {
 
         {loading ? (
           <p className="py-12 text-center text-slate-400">Loading your favorites...</p>
+        ) : visibleMovies.length === 0 && movies.length === 0 && loadError ? (
+          <div role="alert" className="mx-auto my-12 max-w-md rounded-3xl border border-amber-500/30 bg-slate-900 p-12 text-center">
+            <h2 className="text-xl font-bold">Unable to load your Favorites</h2>
+            <p className="mt-3 text-sm text-slate-400">{loadError} Your saved movies may still be available; please try again later.</p>
+          </div>
         ) : visibleMovies.length === 0 ? (
           <div className="mx-auto my-12 max-w-md space-y-4 rounded-3xl border border-slate-700/80 bg-slate-900 p-12 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-400">

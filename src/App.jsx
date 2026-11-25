@@ -1,20 +1,26 @@
-import { useEffect, useState } from "react";
-import {
-  getPopularMovies,
-  getNowPlayingMovies,
-  getWeeklyTrendingMovies,
-  getMoviesByGenre,
-  searchMovies,
-} from "./api/tmdb";
+import { useEffect, useRef, useState } from "react";
+import { searchMovies, isAbortError } from "./api/tmdb";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import FilterSidebar from "./components/FilterSidebar";
 import MovieCard from "./components/MovieCard";
 import Footer from "./components/Footer";
+import {
+  loadCategoryReplacements,
+  loadGenreMovieCategory,
+  loadInitialMovieCategories,
+} from "./services/movieCategories";
+import { getMovieReviewRatingSummaries } from "./services/movieLists";
+import { createLatestRequest } from "./utils/latestRequest";
+import { calculateMovieRating } from "./utils/movieRating";
 
 export default function App() {
+  const searchRequests = useRef(null);
+  if (!searchRequests.current) searchRequests.current = createLatestRequest();
   const [categories, setCategories] = useState([]);
   const [searchMoviesFound, setSearchMoviesFound] = useState(null);
+  const [communityRatings, setCommunityRatings] = useState({});
+  const [communityRatingError, setCommunityRatingError] = useState("");
   const [error, setError] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([
     "popular",
@@ -29,39 +35,62 @@ export default function App() {
   const [sortBy, setSortBy] = useState("vote_average");
   const [reloadPages, setReloadPages] = useState({});
 
-  useEffect(() => {
-    Promise.all([
-      Promise.all([1, 2, 3].map((page) => getPopularMovies(page))),
-      Promise.all([1, 2, 3].map((page) => getNowPlayingMovies(page))),
-      Promise.all([1, 2, 3].map((page) => getWeeklyTrendingMovies(page))),
-    ])
-      .then(([popularPages, nowPlayingPages, trendingPages]) => {
-        const mergeUnique = (pages) =>
-          pages.flat().filter(
-            (movie, index, movies) =>
-              movies.findIndex((item) => item.id === movie.id) === index
-          );
+  useEffect(() => () => searchRequests.current.cancel(), []);
 
-        setCategories([
-          { id: "popular", title: "Popular Movies", movies: mergeUnique(popularPages), reloadPage: 3 },
-          { id: "now-playing", title: "Now in Cinemas", movies: mergeUnique(nowPlayingPages), reloadPage: 3 },
-          { id: "trending", title: "Trending This Week", movies: mergeUnique(trendingPages), reloadPage: 3 },
-        ]);
-      })
+  useEffect(() => {
+    loadInitialMovieCategories()
+      .then(setCategories)
       .catch(() => setError("Unable to load movies."));
   }, []);
+
+  useEffect(() => {
+    const movieIds = [...new Set([
+      ...categories.flatMap((category) => category.movies.map((movie) => String(movie.id))),
+      ...(searchMoviesFound?.movies || []).map((movie) => String(movie.id)),
+    ])];
+
+    if (movieIds.length === 0) {
+      setCommunityRatings({});
+      setCommunityRatingError("");
+      return undefined;
+    }
+
+    let isActive = true;
+    setCommunityRatingError("");
+    getMovieReviewRatingSummaries(movieIds)
+      .then((summaries) => {
+        if (isActive) setCommunityRatings(summaries);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setCommunityRatings({});
+        setCommunityRatingError("Community ratings are unavailable; showing TMDB ratings.");
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [categories, searchMoviesFound]);
 
   function handleSearch(query) {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
+      searchRequests.current.cancel();
       setSearchMoviesFound(null);
+      setError("");
       return;
     }
 
     setError("");
-    searchMovies(trimmedQuery)
-      .then((movies) => setSearchMoviesFound({ query: trimmedQuery, movies }))
-      .catch(() => setError("Unable to search for movies."));
+    const request = searchRequests.current.start();
+    searchMovies(trimmedQuery, request.signal)
+      .then((movies) => {
+        if (request.isCurrent()) setSearchMoviesFound({ query: trimmedQuery, movies });
+      })
+      .catch((searchError) => {
+        if (!request.isCurrent() || isAbortError(searchError)) return;
+        setError("Unable to search for movies.");
+      });
   }
 
   function handleCategoryChange(categoryId) {
@@ -80,40 +109,18 @@ export default function App() {
       return;
     }
 
-    const genres = {
-      "genre-28": { name: "Action", apiId: 28 },
-      "genre-18": { name: "Drama", apiId: 18 },
-      "genre-878": { name: "Sci-Fi", apiId: 878 },
-      "genre-35": { name: "Comedy", apiId: 35 },
-      "genre-27": { name: "Horror", apiId: 27 },
-      "genre-10749": { name: "Romance", apiId: 10749 },
-      "genre-12": { name: "Adventure", apiId: 12 },
-    };
-    const genre = genres[categoryId];
-
     setSelectedCategories((current) =>
       current.includes(categoryId) ? current : [...current, categoryId]
     );
     setCategoryOrder((current) =>
       current.includes(categoryId) ? current : [...current, categoryId]
     );
-    Promise.all([1, 2, 3].map((page) => getMoviesByGenre(genre.apiId, page)))
-      .then((pages) => {
-        const movies = pages
-          .flat()
-          .filter(
-            (movie, index, list) =>
-              list.findIndex((item) => item.id === movie.id) === index
-          );
+    loadGenreMovieCategory(categoryId)
+      .then((genreCategory) => {
+        if (!genreCategory) return;
         setCategories((current) => [
-          ...current.filter((category) => category.id !== categoryId),
-          {
-            id: categoryId,
-            title: `${genre.name} Movies`,
-            movies,
-            apiId: genre.apiId,
-            reloadPage: 3,
-          },
+          ...current.filter((category) => category.id !== genreCategory.id),
+          genreCategory,
         ]);
       })
       .catch(() => setError("Unable to load this genre."));
@@ -146,47 +153,23 @@ export default function App() {
       if (sortBy === "release_date") {
         return (b.release_date || "").localeCompare(a.release_date || "");
       }
-      return (b.vote_average || 0) - (a.vote_average || 0);
+      const bRating = calculateMovieRating(
+        b,
+        communityRatings[String(b.id)],
+      ).average || 0;
+      const aRating = calculateMovieRating(
+        a,
+        communityRatings[String(a.id)],
+      ).average || 0;
+      return bRating - aRating;
     });
   }
 
   function reloadCategory(category) {
     const currentIndex = category.reloadPage || reloadPages[category.id] || 3;
     const startPage = currentIndex + 1;
-    const pageNumbers = Array.from({ length: 5 }, (_, index) => startPage + index);
-
-    let request;
-    if (category.id === "popular") {
-      request = Promise.all(pageNumbers.map((page) => getPopularMovies(page)));
-    } else if (category.id === "now-playing") {
-      request = Promise.all(pageNumbers.map((page) => getNowPlayingMovies(page)));
-    } else if (category.id === "trending") {
-      request = Promise.all(pageNumbers.map((page) => getWeeklyTrendingMovies(page)));
-    } else {
-      request = Promise.all(
-        pageNumbers.map((page) => getMoviesByGenre(category.apiId, page))
-      );
-    }
-
-    request
-      .then((pages) => {
-        const usedByOtherCategories = new Set(
-          categories
-            .filter((item) => item.id !== category.id)
-            .flatMap((item) => item.movies.map((movie) => movie.id))
-        );
-        const currentMovieIds = new Set(
-          category.movies.map((movie) => movie.id)
-        );
-        const candidates = pages
-          .flat()
-          .filter(
-            (movie, index, movies) =>
-              !usedByOtherCategories.has(movie.id) &&
-              !currentMovieIds.has(movie.id) &&
-              movies.findIndex((item) => item.id === movie.id) === index
-          );
-
+    loadCategoryReplacements(category, categories, startPage)
+      .then(({ candidates, nextPage }) => {
         if (category.id === "now-playing" && candidates.length === 0) {
           return;
         }
@@ -198,14 +181,14 @@ export default function App() {
                 ? {
                     ...item,
                     movies: candidates.slice(0, 20),
-                    reloadPage: startPage + pageNumbers.length - 1,
+                    reloadPage: nextPage,
                   }
                 : item
             )
           );
           setReloadPages((current) => ({
             ...current,
-            [category.id]: startPage + pageNumbers.length - 1,
+            [category.id]: nextPage,
           }));
         }
       })
@@ -271,6 +254,11 @@ export default function App() {
 
         <section data-movie-content className="min-w-0 flex-1">
           {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
+          {communityRatingError && (
+            <p role="alert" className="mb-4 text-sm text-amber-300">
+              {communityRatingError}
+            </p>
+          )}
 
           {searchMoviesFound ? (
             <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
@@ -280,7 +268,11 @@ export default function App() {
               {searchMoviesFound.movies.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                   {sortMovies(searchMoviesFound.movies).map((movie) => (
-                    <MovieCard key={movie.id} movie={movie} />
+                    <MovieCard
+                      key={movie.id}
+                      movie={movie}
+                      communityRatings={communityRatings[String(movie.id)]}
+                    />
                   ))}
                 </div>
               ) : (
@@ -330,7 +322,12 @@ export default function App() {
                     </div>
                     <div className="category-scroll relative isolate flex gap-4 overflow-x-auto px-1 pb-1">
                       {sortMovies(category.movies).slice(0, 20).map((movie) => (
-                        <MovieCard key={movie.id} movie={movie} inCategoryRow />
+                        <MovieCard
+                          key={movie.id}
+                          movie={movie}
+                          inCategoryRow
+                          communityRatings={communityRatings[String(movie.id)]}
+                        />
                       ))}
                     </div>
                   </section>

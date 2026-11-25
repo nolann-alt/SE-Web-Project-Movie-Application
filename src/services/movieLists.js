@@ -144,6 +144,31 @@ export async function getMovieReviews(movieId) {
   return data.map(mapMovieReview);
 }
 
+export async function getMovieReviewRatingSummaries(movieIds) {
+  const uniqueIds = [...new Set(movieIds.map(String))];
+  if (uniqueIds.length === 0) return {};
+
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .select("movie_id,rating")
+    .in("movie_id", uniqueIds);
+
+  if (error) throw error;
+
+  return data.reduce((summaries, review) => {
+    const rating = Number(review.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 10) return summaries;
+
+    const movieId = String(review.movie_id);
+    const summary = summaries[movieId] || { sum: 0, count: 0 };
+    summaries[movieId] = {
+      sum: summary.sum + rating,
+      count: summary.count + 1,
+    };
+    return summaries;
+  }, {});
+}
+
 export async function addMovieReview(movieId, review) {
   const { data, error } = await getSupabaseClient()
     .from("movie_reviews")

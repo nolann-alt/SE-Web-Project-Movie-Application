@@ -3,7 +3,8 @@ import { Link } from "react-router";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { getMovieDetails } from "../api/tmdb";
-import { getCurrentUser } from "../services/auth";
+import { useAuth } from "../services/auth";
+import { loadMoviesIndividually } from "../utils/loadMoviesIndividually";
 import {
   getFavorites,
   getWatchlist,
@@ -29,9 +30,12 @@ function formatRuntime(minutes) {
 }
 
 export default function WatchList() {
-  const currentUser = getCurrentUser();
+  const { user, isLoading: isAuthLoading, error: authError } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [failedMovieCount, setFailedMovieCount] = useState(0);
+  const [loadError, setLoadError] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [genreFilter, setGenreFilter] = useState("All");
   const [sortBy, setSortBy] = useState("recently_added");
@@ -42,28 +46,55 @@ export default function WatchList() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (isAuthLoading) return undefined;
+    if (!currentUserId) {
+      setMovies([]);
+      setFailedMovieCount(0);
+      setLoadError("");
+      setFavoriteIds([]);
+      setLoading(false);
+      return undefined;
+    }
 
     const ids = getWatchlist();
+    setFavoriteIds(getFavorites());
     setLoading(true);
+    setMovies([]);
+    setFailedMovieCount(0);
+    setLoadError("");
     if (ids.length === 0) {
       setMovies([]);
       setLoading(false);
-      return;
+      return undefined;
     }
 
-    Promise.all(ids.map((id) => getMovieDetails(id)))
-      .then((loadedMovies) => {
-        setMovies(
-          loadedMovies.map((movie) => ({
-            ...movie,
-            watchlistStatus: getWatchlistStatus(movie.id),
-          })),
-        );
+    let isActive = true;
+    loadMoviesIndividually(ids, async (id) => {
+      const movie = await getMovieDetails(id);
+      return {
+        ...movie,
+        watchlistStatus: getWatchlistStatus(movie.id),
+      };
+    })
+      .then(({ movies: loadedMovies, failedCount }) => {
+        if (isActive) {
+          setMovies(loadedMovies);
+          setFailedMovieCount(failedCount);
+          if (failedCount > 0) {
+            setLoadError("Some saved movies could not be loaded.");
+          }
+        }
       })
-      .catch(() => setMovies([]))
-      .finally(() => setLoading(false));
-  }, [currentUser]);
+      .catch(() => {
+        if (isActive) setLoadError("Unable to load your saved movies.");
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [currentUserId, isAuthLoading]);
 
   useEffect(() => {
     function updateLibrary() {
@@ -165,7 +196,20 @@ export default function WatchList() {
     setToast("Movie restored to WatchList");
   }
 
-  if (!currentUser) {
+  if (isAuthLoading || authError) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <Navbar />
+        <main className="mx-auto max-w-md px-4 py-20 text-center">
+          <p role={authError ? "alert" : undefined} className={authError ? "text-red-300" : "text-slate-400"}>
+            {authError ? "Unable to restore your session. Refresh the page to try again." : "Restoring your session..."}
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!currentUserId) {
     return (
       <div className="min-h-screen bg-slate-950 text-white">
         <Navbar />
@@ -226,6 +270,15 @@ export default function WatchList() {
           </div>
         </section>
 
+        {loadError && movies.length > 0 && (
+          <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {loadError} {movies.length > 0
+              ? "The movies that loaded are still shown."
+              : "Your WatchList is not empty; please try again later."}
+            {failedMovieCount > 0 && ` (${failedMovieCount} failed).`}
+          </p>
+        )}
+
         <section className="space-y-4 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-4">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
@@ -279,6 +332,11 @@ export default function WatchList() {
 
         {loading ? (
           <p className="py-12 text-center text-slate-400">Loading your WatchList...</p>
+        ) : visibleMovies.length === 0 && movies.length === 0 && loadError ? (
+          <div role="alert" className="mx-auto my-12 max-w-md rounded-3xl border border-amber-500/30 bg-slate-900 p-12 text-center">
+            <h2 className="text-xl font-bold">Unable to load your WatchList</h2>
+            <p className="mt-3 text-sm text-slate-400">{loadError} Your saved movies may still be available; please try again later.</p>
+          </div>
         ) : visibleMovies.length === 0 ? (
           <div className="mx-auto my-12 max-w-md space-y-4 rounded-3xl border border-slate-700/80 bg-slate-900 p-12 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-sky-500/20 bg-sky-500/10 text-sky-400">

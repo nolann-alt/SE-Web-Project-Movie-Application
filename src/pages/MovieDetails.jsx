@@ -1,114 +1,70 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { getMovieDetails } from "../api/tmdb";
+import { getMovieDetails, isAbortError } from "../api/tmdb";
 import Navbar from "../components/Navbar";
+import MovieReviewsSection from "../components/MovieReviewsSection";
 import { getCurrentUser, getCurrentUserId } from "../services/auth";
 import {
-  addMovieReview,
-  deleteMovieReview,
   getFavorites,
-  getMovieReviews,
-  getProfileUsername,
   getWatchlist,
   toggleFavoriteMovie,
   toggleWatchlistMovie,
 } from "../services/movieLists";
+import { useMovieReviews } from "../hooks/useMovieReviews";
+import { createLatestRequest } from "../utils/latestRequest";
+import { calculateMovieRating } from "../utils/movieRating";
 
 const imageUrl = (path, size = "w780") =>
   path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
 
 export default function MovieDetails() {
   const { movieId } = useParams();
+  const movieRequests = useRef(null);
+  if (!movieRequests.current) movieRequests.current = createLatestRequest();
   const [movie, setMovie] = useState(null);
   const [error, setError] = useState("");
   const [inWatchlist, setInWatchlist] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showTrailer, setShowTrailer] = useState(false);
-  const [reviews, setReviews] = useState([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [reviewError, setReviewError] = useState("");
-  const [username, setUsername] = useState("");
-  const [reviewText, setReviewText] = useState("");
-  const [rating, setRating] = useState(8);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
   const [accountPromptMessage, setAccountPromptMessage] = useState("");
 
   const currentUser = getCurrentUser();
   const currentUserId = getCurrentUserId();
-  const existingReview = currentUserId
-    ? reviews.find((review) => review.userId === currentUserId)
-    : null;
-  const localRatings = reviews
-    .map((review) => Number(review.rating))
-    .filter((reviewRating) => Number.isFinite(reviewRating) && reviewRating >= 1 && reviewRating <= 10);
-  const tmdbVoteCount = Number(movie?.vote_count) || 0;
-  const totalVoteCount = tmdbVoteCount + localRatings.length;
-  const averageRating = totalVoteCount
-    ? ((Number(movie?.vote_average) || 0) * tmdbVoteCount
-      + localRatings.reduce((total, reviewRating) => total + reviewRating, 0))
-      / totalVoteCount
-    : null;
-
-  useEffect(() => {
-    setReviewText(existingReview?.text || "");
-    setRating(existingReview?.rating || 8);
-  }, [currentUser, currentUserId, existingReview]);
-
-  useEffect(() => {
-    let isActive = true;
-    if (!currentUserId) {
-      setUsername("");
-      return () => {
-        isActive = false;
-      };
-    }
-
-    function loadUsername() {
-      getProfileUsername(currentUserId)
-        .then((profileUsername) => {
-          if (isActive) setUsername(profileUsername);
-        })
-        .catch(() => {
-          if (isActive) setReviewError("Unable to load your username.");
-        });
-    }
-    loadUsername();
-    window.addEventListener("filmsphere-profile-updated", loadUsername);
-    return () => {
-      isActive = false;
-      window.removeEventListener("filmsphere-profile-updated", loadUsername);
-    };
-  }, [currentUserId]);
+  const {
+    reviews,
+    isLoadingReviews,
+    isSubmittingReview,
+    reviewError,
+    reviewText,
+    setReviewText,
+    rating,
+    setRating,
+    existingReview,
+    handleReviewSubmit,
+    handleReviewDelete,
+  } = useMovieReviews(movieId, currentUser, currentUserId, requireAccount);
+  const { average: averageRating, voteCount: totalVoteCount } =
+    calculateMovieRating(movie, reviews);
 
   useEffect(() => {
     setError("");
     setMovie(null);
-    getMovieDetails(movieId)
-      .then(setMovie)
-      .catch(() => setError("Unable to load this movie."));
+    const request = movieRequests.current.start();
+    getMovieDetails(movieId, request.signal)
+      .then((movieDetails) => {
+        if (request.isCurrent()) setMovie(movieDetails);
+      })
+      .catch((movieError) => {
+        if (!request.isCurrent() || isAbortError(movieError)) return;
+        setError("Unable to load this movie.");
+      });
+    return () => movieRequests.current.cancel();
   }, [movieId]);
 
   useEffect(() => {
     setInWatchlist(getWatchlist().includes(String(movieId)));
     setIsFavorite(getFavorites().includes(String(movieId)));
-    let isActive = true;
-    setReviews([]);
-    setReviewError("");
-    setIsLoadingReviews(true);
-    getMovieReviews(movieId)
-      .then((movieReviews) => {
-        if (isActive) setReviews(movieReviews);
-      })
-      .catch(() => {
-        if (isActive) setReviewError("Unable to load shared reviews.");
-      })
-      .finally(() => {
-        if (isActive) setIsLoadingReviews(false);
-      });
-    return () => {
-      isActive = false;
-    };
   }, [movieId]);
 
   useEffect(() => {
@@ -143,61 +99,6 @@ export default function MovieDetails() {
       return;
     }
     setIsFavorite(toggleFavoriteMovie(movieId));
-  }
-
-  async function handleReviewSubmit(event) {
-    event.preventDefault();
-    if (!currentUser || !currentUserId) {
-      requireAccount("Log in or create an account before posting your review.");
-      return;
-    }
-    if (!username) {
-      setReviewError("Your username is not available yet. Please try again.");
-      return;
-    }
-
-    setReviewError("");
-    setIsSubmittingReview(true);
-    const review = {
-      id: existingReview?.id ?? Date.now(),
-      userId: currentUserId,
-      author: username,
-      text: reviewText.trim(),
-      rating,
-    };
-    try {
-      const savedReview = await addMovieReview(movieId, review);
-      setReviews((current) => [
-        savedReview,
-        ...current.filter((item) => item.userId !== currentUserId),
-      ]);
-    } catch {
-      setReviewError("Unable to save your rating. Please try again.");
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  }
-
-  async function handleReviewDelete() {
-    if (!currentUserId || !existingReview) return;
-    if (!window.confirm("Delete your rating and comment for this movie?")) return;
-
-    setReviewError("");
-    try {
-      const deleted = await deleteMovieReview(movieId, existingReview.id, currentUserId);
-      if (!deleted) {
-        setReviewError("Your rating could not be found. Please refresh the page.");
-        return;
-      }
-
-      setReviews((current) => current.filter(
-        (review) => review.userId !== currentUserId,
-      ));
-      setReviewText("");
-      setRating(8);
-    } catch {
-      setReviewError("Unable to delete your rating. Please try again.");
-    }
   }
 
   if (error) {
@@ -287,7 +188,7 @@ export default function MovieDetails() {
                 <div className="flex w-fit items-center gap-3 rounded-xl border border-white/10 bg-slate-950/55 px-4 py-2.5 shadow-lg backdrop-blur-md">
                   <span className="text-xl text-amber-300" aria-hidden="true">★</span>
                   <div>
-                    <span className="font-bold">{averageRating?.toFixed(1) || "N/A"}</span>
+                    <span className="font-bold">{averageRating === null ? "N/A" : averageRating.toFixed(1)}</span>
                     <span className="text-xs text-slate-400"> / 10</span>
                     <p className="text-[10px] text-slate-400">{totalVoteCount.toLocaleString()} votes</p>
                   </div>
@@ -430,63 +331,19 @@ export default function MovieDetails() {
             </aside>
           </div>
 
-          <section>
-            <h2 className="mb-6 flex items-center gap-3 text-2xl font-bold">
-              <span className="h-8 w-1 rounded-full bg-sky-400" />
-              Community Reviews & Ratings
-              {reviews.length > 0 && (
-                <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-300">
-                  {reviews.length}
-                </span>
-              )}
-            </h2>
-            {reviewError && (
-              <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-950/40 p-3 text-sm text-red-200">
-                {reviewError}
-              </p>
-            )}
-            <div className="grid gap-8 lg:grid-cols-3">
-              <form onSubmit={handleReviewSubmit} className="h-fit space-y-4 rounded-2xl border border-slate-800/90 bg-slate-900/85 p-6 shadow-[0_16px_40px_rgba(2,6,23,0.22)]">
-                <h3 className="border-b border-slate-800 pb-3 text-lg font-bold">{existingReview ? "Update Your Rating" : "Rate This Movie"}</h3>
-                {existingReview && (
-                  <p className="text-sm text-sky-300">You already rated this movie. Submit to change your rating or review.</p>
-                )}
-                <label className="block text-xs text-slate-400">
-                  Rating: <span className="font-bold text-sky-300">{rating} / 10</span>
-                  <input type="range" min="1" max="10" value={rating} onChange={(event) => setRating(Number(event.target.value))} className="mt-2 w-full accent-sky-400" />
-                </label>
-                <label className="block text-xs text-slate-400">
-                  Comment (optional)
-                  <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} rows="4" className="mt-1.5 w-full resize-none rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm leading-6 text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/15" />
-                </label>
-                <button type="submit" disabled={isSubmittingReview} className="w-full rounded-xl bg-sky-500 py-3 text-sm font-bold shadow-[0_10px_25px_rgba(14,165,233,0.18)] transition hover:-translate-y-0.5 hover:bg-sky-400 disabled:cursor-wait disabled:opacity-60">{isSubmittingReview ? "Saving..." : existingReview ? "Update Rating" : "Submit Rating"}</button>
-                {existingReview && (
-                  <button type="button" onClick={handleReviewDelete} disabled={isSubmittingReview} className="w-full rounded-xl border border-red-400/30 py-3 text-sm font-bold text-red-300 transition hover:bg-red-400/10 disabled:cursor-wait disabled:opacity-60">Delete My Rating</button>
-                )}
-              </form>
-
-              <div className="space-y-4 lg:col-span-2">
-                {isLoadingReviews ? (
-                  <p className="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-400">Loading reviews...</p>
-                ) : reviews.length === 0 ? (
-                  <p className="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-400">No shared reviews yet. Be the first to rate this movie.</p>
-                ) : reviews.map((review) => (
-                  <article key={review.id} className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold">{review.author}</h3>
-                        <p className="mt-1 text-xs text-slate-400">{review.createdAt}</p>
-                      </div>
-                      <span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-bold text-amber-300">★ {review.rating} / 10</span>
-                    </div>
-                    {review.text
-                      ? <p className="mt-3 text-sm leading-6 text-slate-300">{review.text}</p>
-                      : <p className="mt-3 text-sm italic text-slate-500">Rating only</p>}
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
+          <MovieReviewsSection
+            reviews={reviews}
+            existingReview={existingReview}
+            isLoadingReviews={isLoadingReviews}
+            isSubmittingReview={isSubmittingReview}
+            reviewError={reviewError}
+            rating={rating}
+            setRating={setRating}
+            reviewText={reviewText}
+            setReviewText={setReviewText}
+            onSubmit={handleReviewSubmit}
+            onDelete={handleReviewDelete}
+          />
         </div>
       </main>
 

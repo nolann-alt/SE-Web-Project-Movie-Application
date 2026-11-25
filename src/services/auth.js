@@ -1,17 +1,20 @@
+import { useEffect, useSyncExternalStore } from "react";
 import { getSupabaseClient, supabase } from "./supabaseClient";
+import { createAuthStore } from "./authStore";
 
-let currentSessionUser = null;
+const authStore = createAuthStore(supabase);
 
-function notifyAuthUpdated() {
-  window.dispatchEvent(new Event("filmsphere-auth-updated"));
-  window.dispatchEvent(new Event("filmsphere-library-updated"));
+export function AuthProvider({ children }) {
+  useEffect(() => authStore.start(), []);
+  return children;
 }
 
-if (supabase) {
-  supabase.auth.onAuthStateChange((_event, session) => {
-    currentSessionUser = session?.user ?? null;
-    notifyAuthUpdated();
-  });
+export function useAuth() {
+  return useSyncExternalStore(
+    authStore.subscribe,
+    authStore.getSnapshot,
+    authStore.getSnapshot,
+  );
 }
 
 export async function registerUser(email, password, username) {
@@ -67,11 +70,11 @@ export async function loginUser(email, password) {
 }
 
 export function getCurrentUser() {
-  return currentSessionUser?.email ?? null;
+  return authStore.getSnapshot().user?.email ?? null;
 }
 
 export function getCurrentUserId() {
-  return currentSessionUser?.id ?? null;
+  return authStore.getSnapshot().user?.id ?? null;
 }
 
 export async function logoutUser() {
