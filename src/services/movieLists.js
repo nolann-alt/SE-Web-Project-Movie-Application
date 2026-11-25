@@ -3,9 +3,9 @@ import { getSupabaseClient } from "./supabaseClient";
 
 const MOVIE_LISTS_KEY = "filmsphere-movie-lists";
 const WATCHLIST_STATUSES_KEY = "filmsphere-watchlist-statuses";
-const REVIEWS_KEY = "filmsphere_reviews";
 const FAVORITE_METADATA_KEY = "filmsphere-favorite-metadata";
 const PINNED_FAVORITE_KEY = "filmsphere-pinned-favorite";
+const REVIEW_COLUMNS = "id,movie_id,user_id,author,rating,comment,created_at";
 
 function readIds(key) {
   try {
@@ -122,13 +122,15 @@ export function setWatchlistStatus(movieId, status) {
   return true;
 }
 
-export function getMovieReviews(movieId) {
-  try {
-    const allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
-    return Array.isArray(allReviews[String(movieId)]) ? allReviews[String(movieId)] : [];
-  } catch {
-    return [];
-  }
+function mapMovieReview(review) {
+  return {
+    id: review.id,
+    userId: review.user_id,
+    author: review.author,
+    rating: review.rating,
+    text: review.comment,
+    createdAt: new Date(review.created_at).toLocaleDateString(),
+  };
 }
 
 export async function getMovieReviews(movieId) {
