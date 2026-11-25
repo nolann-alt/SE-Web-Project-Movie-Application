@@ -8,6 +8,7 @@ import {
   deleteMovieReview,
   getFavorites,
   getMovieReviews,
+  getProfileUsername,
   getWatchlist,
   toggleFavoriteMovie,
   toggleWatchlistMovie,
@@ -27,6 +28,7 @@ export default function MovieDetails() {
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [username, setUsername] = useState("");
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(8);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
@@ -34,13 +36,8 @@ export default function MovieDetails() {
 
   const currentUser = getCurrentUser();
   const currentUserId = getCurrentUserId();
-  const author = currentUser?.includes("@")
-    ? currentUser.split("@")[0]
-    : currentUser;
   const existingReview = currentUserId
-    ? reviews.find((review) =>
-      review.userId === currentUserId
-      || (!review.userId && review.author === author))
+    ? reviews.find((review) => review.userId === currentUserId)
     : null;
   const localRatings = reviews
     .map((review) => Number(review.rating))
@@ -57,6 +54,32 @@ export default function MovieDetails() {
     setReviewText(existingReview?.text || "");
     setRating(existingReview?.rating || 8);
   }, [currentUser, currentUserId, existingReview]);
+
+  useEffect(() => {
+    let isActive = true;
+    if (!currentUserId) {
+      setUsername("");
+      return () => {
+        isActive = false;
+      };
+    }
+
+    function loadUsername() {
+      getProfileUsername(currentUserId)
+        .then((profileUsername) => {
+          if (isActive) setUsername(profileUsername);
+        })
+        .catch(() => {
+          if (isActive) setReviewError("Unable to load your username.");
+        });
+    }
+    loadUsername();
+    window.addEventListener("filmsphere-profile-updated", loadUsername);
+    return () => {
+      isActive = false;
+      window.removeEventListener("filmsphere-profile-updated", loadUsername);
+    };
+  }, [currentUserId]);
 
   useEffect(() => {
     setError("");
@@ -128,13 +151,17 @@ export default function MovieDetails() {
       requireAccount("Log in or create an account before posting your review.");
       return;
     }
+    if (!username) {
+      setReviewError("Your username is not available yet. Please try again.");
+      return;
+    }
 
     setReviewError("");
     setIsSubmittingReview(true);
     const review = {
       id: existingReview?.id ?? Date.now(),
       userId: currentUserId,
-      author,
+      author: username,
       text: reviewText.trim(),
       rating,
     };

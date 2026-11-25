@@ -122,3 +122,26 @@ export async function deleteMovieReview(movieId, reviewId, userId) {
   if (error) throw error;
   return Boolean(data);
 }
+
+export async function getProfileUsername(userId) {
+  const { data, error } = await getSupabaseClient()
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .single();
+
+  if (error) throw error;
+  return data.username;
+}
+
+export async function updateProfileUsername(userId, username) {
+  const { data, error } = await getSupabaseClient()
+    .from("profiles")
+    .update({ username })
+    .eq("user_id", userId)
+    .select("username")
+    .single();
+
+  if (error) throw error;
+  return data.username;
+}

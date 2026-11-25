@@ -5,6 +5,7 @@ import { registerUser } from "../services/auth";
 
 export default function Register() {
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,7 +17,7 @@ export default function Register() {
     setError("");
     setMessage("");
     setIsSubmitting(true);
-    const result = await registerUser(email, password);
+    const result = await registerUser(email, password, username);
     setIsSubmitting(false);
 
     if (!result.success) {
@@ -35,11 +36,13 @@ export default function Register() {
   return (
     <AuthForm
       email={email}
+      username={username}
       password={password}
       error={error}
       message={message}
       isSubmitting={isSubmitting}
       onEmailChange={setEmail}
+      onUsernameChange={setUsername}
       onPasswordChange={setPassword}
       onSubmit={handleSubmit}
     />

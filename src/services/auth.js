@@ -14,14 +14,32 @@ if (supabase) {
   });
 }
 
-export async function registerUser(email, password) {
+export async function registerUser(email, password, username) {
+  const normalizedUsername = username.trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
+    return {
+      success: false,
+      error: "Username must be 3 to 20 letters, numbers, or underscores.",
+    };
+  }
+
   try {
     const { data, error } = await getSupabaseClient().auth.signUp({
       email: email.trim().toLowerCase(),
       password,
+      options: { data: { username: normalizedUsername } },
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      const errorMessage = error.message.toLowerCase();
+      const message = errorMessage.includes("username is already taken")
+        || errorMessage.includes("profiles_username_lower_uidx")
+        ? "That username is already taken. Please choose another."
+        : errorMessage.includes("database error saving new user")
+          ? "Unable to create the account. The email may already be registered or the username may be taken."
+          : error.message;
+      return { success: false, error: message };
+    }
     return { success: true, needsEmailConfirmation: !data.session };
   } catch (error) {
     return {
