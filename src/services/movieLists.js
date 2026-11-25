@@ -84,6 +84,38 @@ export function addMovieReview(movieId, review) {
   }
 
   const key = String(movieId);
-  allReviews[key] = [review, ...(Array.isArray(allReviews[key]) ? allReviews[key] : [])];
+  const movieReviews = Array.isArray(allReviews[key]) ? allReviews[key] : [];
+  allReviews[key] = [
+    review,
+    ...movieReviews.filter(
+      (existingReview) =>
+        existingReview.id !== review.id
+        && (!review.userId || existingReview.userId !== review.userId),
+    ),
+  ];
   localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
+}
+
+export function deleteMovieReview(movieId, reviewId, userId) {
+  if (!userId) return false;
+
+  let allReviews = {};
+  try {
+    allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
+  } catch {
+    allReviews = {};
+  }
+
+  const key = String(movieId);
+  const movieReviews = Array.isArray(allReviews[key]) ? allReviews[key] : [];
+  const remainingReviews = movieReviews.filter(
+    (review) =>
+      review.userId !== userId
+      && (review.userId || String(review.id) !== String(reviewId)),
+  );
+  if (remainingReviews.length === movieReviews.length) return false;
+
+  allReviews[key] = remainingReviews;
+  localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
+  return true;
 }
