@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router";
 import profileImage from "../assets/profile.png";
 import { getCurrentUser, getCurrentUserId, logoutUser } from "../services/auth";
@@ -50,6 +51,17 @@ function ProfileButton() {
     };
   }, [currentUserId]);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setIsOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
   async function handleLogout() {
     const result = await logoutUser();
     if (!result.success) {
@@ -95,7 +107,11 @@ function ProfileButton() {
   return (
     <div className="relative inline-block">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Open profile menu"
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
         className="group cursor-pointer rounded-full border-none bg-transparent transition-transform duration-300 hover:scale-110"
       >
         <img
@@ -105,64 +121,93 @@ function ProfileButton() {
         />
       </button>
 
-      {isOpen && (
-        <div className="absolute left-1/2 top-full z-50 mt-3 w-64 -translate-x-1/2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 p-3 shadow-2xl shadow-black/30">
-          {error && <p role="alert" className="px-2 py-2 text-center text-xs text-red-300">{error}</p>}
-          {currentUser ? (
-            <>
-              <p className="truncate border-b border-slate-800 px-2 pb-2 text-center text-xs text-slate-400">
-                {username || currentUser}
-              </p>
-              <form onSubmit={handleUsernameUpdate} className="space-y-2 py-2">
-                <label htmlFor="profile-username" className="block text-xs text-slate-400">
-                  Change username
-                </label>
-                <input
-                  id="profile-username"
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  minLength="3"
-                  maxLength="20"
-                  pattern="[A-Za-z0-9_]{3,20}"
-                  required
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-sm text-white outline-none focus:border-sky-400"
-                />
-                {usernameError && <p role="alert" className="text-xs text-red-300">{usernameError}</p>}
-                {usernameMessage && <p role="status" className="text-xs text-emerald-300">{usernameMessage}</p>}
-                <button
-                  type="submit"
-                  disabled={isSavingUsername || !currentUserId}
-                  className="w-full rounded-lg bg-sky-500 px-2 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-wait disabled:opacity-60"
-                >
-                  {isSavingUsername ? "Saving..." : "Save username"}
-                </button>
-              </form>
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close profile dialog"
+            onClick={() => setIsOpen(false)}
+            className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-dialog-title"
+            className="relative z-10 max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl shadow-black/50"
+          >
+            <div className="mb-4 flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 id="profile-dialog-title" className="text-lg font-bold text-white">
+                {currentUser ? "Your Profile" : "Your Account"}
+              </h2>
               <button
                 type="button"
-                onClick={handleLogout}
-                className="block w-full border-t border-slate-800 px-2 pt-2 text-center text-sm text-slate-200 transition hover:text-white"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close profile dialog"
+                className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
               >
-                Log out
+                ✕
               </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="block px-2 py-2 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/register"
-                className="block border-t border-slate-800 px-2 py-2 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
-        </div>
+            </div>
+            {error && <p role="alert" className="mb-3 text-center text-sm text-red-300">{error}</p>}
+            {currentUser ? (
+              <>
+                <p className="truncate border-b border-slate-800 px-2 pb-3 text-center text-sm text-slate-400">
+                  {username || currentUser}
+                </p>
+                <form onSubmit={handleUsernameUpdate} className="space-y-3 py-4">
+                  <label htmlFor="profile-username" className="block text-sm text-slate-300">
+                    Change username
+                  </label>
+                  <input
+                    id="profile-username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    minLength="3"
+                    maxLength="20"
+                    pattern="[A-Za-z0-9_]{3,20}"
+                    required
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-400"
+                  />
+                  {usernameError && <p role="alert" className="text-sm text-red-300">{usernameError}</p>}
+                  {usernameMessage && <p role="status" className="text-sm text-emerald-300">{usernameMessage}</p>}
+                  <button
+                    type="submit"
+                    disabled={isSavingUsername || !currentUserId}
+                    className="w-full rounded-lg bg-sky-500 px-3 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {isSavingUsername ? "Saving..." : "Save username"}
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full border-t border-slate-800 pt-3 text-center text-sm text-slate-200 transition hover:text-white"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="block rounded-lg border-t border-slate-800 px-3 py-2.5 text-center text-sm text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </section>
+        </div>,
+        document.body,
       )}
     </div>
   );
