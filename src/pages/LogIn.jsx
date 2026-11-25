@@ -8,10 +8,14 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    const result = loginUser(email, password);
+    setError("");
+    setIsSubmitting(true);
+    const result = await loginUser(email, password);
+    setIsSubmitting(false);
 
     if (!result.success) {
       setError(result.error);
@@ -27,6 +31,7 @@ export default function Login() {
       email={email}
       password={password}
       error={error}
+      isSubmitting={isSubmitting}
       onEmailChange={setEmail}
       onPasswordChange={setPassword}
       onSubmit={handleSubmit}

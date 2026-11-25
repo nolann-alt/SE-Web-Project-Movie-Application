@@ -6,21 +6,28 @@ Student project for the Software Engineering course: a website to browse, search
 
 ```bash
 npm install
-cp .env.example .env   # then add your TMDB API key in .env
+cp .env.example .env
 npm run dev
 ```
 
-## API key
+## Supabase setup
 
-Get a free key at [themoviedb.org](https://www.themoviedb.org/) (Settings > API) and put it in `.env`:
+1. Create a Supabase project and enable email/password authentication.
+2. Run [`supabase/schema.sql`](./supabase/schema.sql) in the Supabase SQL Editor.
+3. In Supabase URL Configuration, allow your local URL (`http://localhost:5173`) and deployed app URL.
+4. Add the project URL and publishable/anon key to `.env` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-```
-VITE_TMDB_API_KEY=your_key_here
-```
+The review table is shared between users. Row Level Security lets everyone read reviews and restricts insert, update, and delete to the signed-in owner. Never put a Supabase service-role key in the frontend.
+
+## TMDB API key
+
+Get a free key at [themoviedb.org](https://www.themoviedb.org/) (Settings > API) and set `VITE_TMDB_API_KEY` in `.env`.
 
 Never commit your real key. `.env` is ignored by Git.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+Existing accounts and reviews saved in browser storage are not migrated to Supabase. Users need to create accounts in the configured Supabase project.
 
 ## AI use
 

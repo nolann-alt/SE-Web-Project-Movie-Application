@@ -1,7 +1,8 @@
 import { getCurrentUser } from "./auth";
+import { getSupabaseClient } from "./supabaseClient";
 
 const MOVIE_LISTS_KEY = "filmsphere-movie-lists";
-const REVIEWS_KEY = "filmsphere_reviews";
+const REVIEW_COLUMNS = "id,movie_id,user_id,author,rating,comment,created_at";
 
 function readIds(key) {
   try {
@@ -66,56 +67,58 @@ export function toggleFavoriteMovie(movieId) {
   return nextIds.includes(id);
 }
 
-export function getMovieReviews(movieId) {
-  try {
-    const allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
-    return Array.isArray(allReviews[String(movieId)]) ? allReviews[String(movieId)] : [];
-  } catch {
-    return [];
-  }
+function mapMovieReview(review) {
+  return {
+    id: review.id,
+    userId: review.user_id,
+    author: review.author,
+    rating: review.rating,
+    text: review.comment,
+    createdAt: new Date(review.created_at).toLocaleDateString(),
+  };
 }
 
-export function addMovieReview(movieId, review) {
-  let allReviews = {};
-  try {
-    allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
-  } catch {
-    allReviews = {};
-  }
+export async function getMovieReviews(movieId) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .select(REVIEW_COLUMNS)
+    .eq("movie_id", movieId)
+    .order("created_at", { ascending: false });
 
-  const key = String(movieId);
-  const movieReviews = Array.isArray(allReviews[key]) ? allReviews[key] : [];
-  allReviews[key] = [
-    review,
-    ...movieReviews.filter(
-      (existingReview) =>
-        existingReview.id !== review.id
-        && (!review.userId || existingReview.userId !== review.userId),
-    ),
-  ];
-  localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
+  if (error) throw error;
+  return data.map(mapMovieReview);
 }
 
-export function deleteMovieReview(movieId, reviewId, userId) {
-  if (!userId) return false;
+export async function addMovieReview(movieId, review) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .upsert(
+      {
+        movie_id: movieId,
+        user_id: review.userId,
+        author: review.author,
+        rating: review.rating,
+        comment: review.text,
+      },
+      { onConflict: "movie_id,user_id" },
+    )
+    .select(REVIEW_COLUMNS)
+    .single();
 
-  let allReviews = {};
-  try {
-    allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
-  } catch {
-    allReviews = {};
-  }
+  if (error) throw error;
+  return mapMovieReview(data);
+}
 
-  const key = String(movieId);
-  const movieReviews = Array.isArray(allReviews[key]) ? allReviews[key] : [];
-  const remainingReviews = movieReviews.filter(
-    (review) =>
-      review.userId !== userId
-      && (review.userId || String(review.id) !== String(reviewId)),
-  );
-  if (remainingReviews.length === movieReviews.length) return false;
+export async function deleteMovieReview(movieId, reviewId, userId) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .delete()
+    .eq("movie_id", movieId)
+    .eq("id", reviewId)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
 
-  allReviews[key] = remainingReviews;
-  localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
-  return true;
+  if (error) throw error;
+  return Boolean(data);
 }

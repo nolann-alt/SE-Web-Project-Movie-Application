@@ -8,13 +8,24 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    const result = registerUser(email, password);
+    setError("");
+    setMessage("");
+    setIsSubmitting(true);
+    const result = await registerUser(email, password);
+    setIsSubmitting(false);
 
     if (!result.success) {
       setError(result.error);
+      return;
+    }
+
+    if (result.needsEmailConfirmation) {
+      setMessage("Check your email to confirm your account, then log in.");
       return;
     }
 
@@ -26,6 +37,8 @@ export default function Register() {
       email={email}
       password={password}
       error={error}
+      message={message}
+      isSubmitting={isSubmitting}
       onEmailChange={setEmail}
       onPasswordChange={setPassword}
       onSubmit={handleSubmit}

@@ -5,6 +5,8 @@ export default function AuthForm({
   email,
   password,
   error,
+  message,
+  isSubmitting,
   onEmailChange,
   onPasswordChange,
   onSubmit,
@@ -62,12 +64,18 @@ export default function AuthForm({
               {error}
             </p>
           )}
+          {message && (
+            <p role="status" className="rounded-lg bg-sky-950 p-3 text-sm text-sky-200">
+              {message}
+            </p>
+          )}
 
           <button
             type="submit"
+            disabled={isSubmitting}
             className="w-full rounded-lg bg-sky-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-sky-400"
           >
-            {isLogin ? "Log in" : "Sign up"}
+            {isSubmitting ? "Please wait..." : isLogin ? "Log in" : "Sign up"}
           </button>
         </form>
 

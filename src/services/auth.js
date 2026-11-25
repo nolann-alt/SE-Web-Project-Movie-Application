@@ -1,61 +1,70 @@
-const USERS_STORAGE_KEY = "filmsphere-users";
-const CURRENT_USER_STORAGE_KEY = "filmsphere-current-user";
+import { getSupabaseClient, supabase } from "./supabaseClient";
 
-function readUsers() {
-  try {
-    const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    return Array.isArray(users) ? users : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
+let currentSessionUser = null;
 
 function notifyAuthUpdated() {
   window.dispatchEvent(new Event("filmsphere-auth-updated"));
   window.dispatchEvent(new Event("filmsphere-library-updated"));
 }
 
-export function registerUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = readUsers();
-
-  if (users.some((user) => user.email === normalizedEmail)) {
-    return { success: false, error: "An account with this email already exists." };
-  }
-
-  saveUsers([...users, { email: normalizedEmail, password }]);
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, normalizedEmail);
-  notifyAuthUpdated();
-
-  return { success: true };
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    currentSessionUser = session?.user ?? null;
+    notifyAuthUpdated();
+  });
 }
 
-export function loginUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const user = readUsers().find(
-    (storedUser) =>
-      storedUser.email === normalizedEmail && storedUser.password === password,
-  );
+export async function registerUser(email, password) {
+  try {
+    const { data, error } = await getSupabaseClient().auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    });
 
-  if (!user) {
-    return { success: false, error: "The email or password is incorrect." };
+    if (error) return { success: false, error: error.message };
+    return { success: true, needsEmailConfirmation: !data.session };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to create your account.",
+    };
   }
+}
 
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, user.email);
-  notifyAuthUpdated();
-  return { success: true };
+export async function loginUser(email, password) {
+  try {
+    const { error } = await getSupabaseClient().auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to log in.",
+    };
+  }
 }
 
 export function getCurrentUser() {
-  return localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+  return currentSessionUser?.email ?? null;
 }
 
-export function logoutUser() {
-  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
-  notifyAuthUpdated();
+export function getCurrentUserId() {
+  return currentSessionUser?.id ?? null;
+}
+
+export async function logoutUser() {
+  try {
+    const { error } = await getSupabaseClient().auth.signOut();
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to log out.",
+    };
+  }
 }
