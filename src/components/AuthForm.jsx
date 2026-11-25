@@ -2,10 +2,14 @@ import { Link } from "react-router";
 
 export default function AuthForm({
   isLogin,
+  username,
   email,
   password,
   error,
+  message,
+  isSubmitting,
   onEmailChange,
+  onUsernameChange,
   onPasswordChange,
   onSubmit,
 }) {
@@ -26,6 +30,29 @@ export default function AuthForm({
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          {!isLogin && (
+            <div>
+              <label htmlFor="username" className="mb-2 block text-sm font-medium">
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(event) => onUsernameChange(event.target.value)}
+                required
+                minLength="3"
+                maxLength="20"
+                pattern="[A-Za-z0-9_]{3,20}"
+                title="Use 3 to 20 letters, numbers, or underscores."
+                autoComplete="nickname"
+                className="w-full rounded-lg border border-slate-600 bg-slate-900 px-4 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                3–20 letters, numbers, or underscores. Usernames are unique.
+              </p>
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="mb-2 block text-sm font-medium">
               Email
@@ -62,12 +89,18 @@ export default function AuthForm({
               {error}
             </p>
           )}
+          {message && (
+            <p role="status" className="rounded-lg bg-sky-950 p-3 text-sm text-sky-200">
+              {message}
+            </p>
+          )}
 
           <button
             type="submit"
+            disabled={isSubmitting}
             className="w-full rounded-lg bg-sky-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-sky-400"
           >
-            {isLogin ? "Log in" : "Sign up"}
+            {isSubmitting ? "Please wait..." : isLogin ? "Log in" : "Sign up"}
           </button>
         </form>
 

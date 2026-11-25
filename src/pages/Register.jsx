@@ -5,16 +5,28 @@ import { registerUser } from "../services/auth";
 
 export default function Register() {
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    const result = registerUser(email, password);
+    setError("");
+    setMessage("");
+    setIsSubmitting(true);
+    const result = await registerUser(email, password, username);
+    setIsSubmitting(false);
 
     if (!result.success) {
       setError(result.error);
+      return;
+    }
+
+    if (result.needsEmailConfirmation) {
+      setMessage("Check your email to confirm your account, then log in.");
       return;
     }
 
@@ -24,9 +36,13 @@ export default function Register() {
   return (
     <AuthForm
       email={email}
+      username={username}
       password={password}
       error={error}
+      message={message}
+      isSubmitting={isSubmitting}
       onEmailChange={setEmail}
+      onUsernameChange={setUsername}
       onPasswordChange={setPassword}
       onSubmit={handleSubmit}
     />

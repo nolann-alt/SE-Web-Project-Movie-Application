@@ -1,4 +1,5 @@
 import { getCurrentUser } from "./auth";
+import { getSupabaseClient } from "./supabaseClient";
 
 const MOVIE_LISTS_KEY = "filmsphere-movie-lists";
 const WATCHLIST_STATUSES_KEY = "filmsphere-watchlist-statuses";
@@ -130,17 +131,72 @@ export function getMovieReviews(movieId) {
   }
 }
 
-export function addMovieReview(movieId, review) {
-  let allReviews = {};
-  try {
-    allReviews = JSON.parse(localStorage.getItem(REVIEWS_KEY) || "{}");
-  } catch {
-    allReviews = {};
-  }
+export async function getMovieReviews(movieId) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .select(REVIEW_COLUMNS)
+    .eq("movie_id", movieId)
+    .order("created_at", { ascending: false });
 
-  const key = String(movieId);
-  allReviews[key] = [review, ...(Array.isArray(allReviews[key]) ? allReviews[key] : [])];
-  localStorage.setItem(REVIEWS_KEY, JSON.stringify(allReviews));
+  if (error) throw error;
+  return data.map(mapMovieReview);
+}
+
+export async function addMovieReview(movieId, review) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .upsert(
+      {
+        movie_id: movieId,
+        user_id: review.userId,
+        author: review.author,
+        rating: review.rating,
+        comment: review.text,
+      },
+      { onConflict: "movie_id,user_id" },
+    )
+    .select(REVIEW_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return mapMovieReview(data);
+}
+
+export async function deleteMovieReview(movieId, reviewId, userId) {
+  const { data, error } = await getSupabaseClient()
+    .from("movie_reviews")
+    .delete()
+    .eq("movie_id", movieId)
+    .eq("id", reviewId)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function getProfileUsername(userId) {
+  const { data, error } = await getSupabaseClient()
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .single();
+
+  if (error) throw error;
+  return data.username;
+}
+
+export async function updateProfileUsername(userId, username) {
+  const { data, error } = await getSupabaseClient()
+    .from("profiles")
+    .update({ username })
+    .eq("user_id", userId)
+    .select("username")
+    .single();
+
+  if (error) throw error;
+  return data.username;
 }
 
 export function getFavoriteMetadata(movieId) {
