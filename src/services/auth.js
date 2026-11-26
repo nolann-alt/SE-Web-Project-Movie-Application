@@ -1,53 +1,97 @@
-const USERS_STORAGE_KEY = "filmsphere-users";
-const CURRENT_USER_STORAGE_KEY = "filmsphere-current-user";
+import { useEffect, useSyncExternalStore } from "react";
+import { getSupabaseClient, supabase } from "./supabaseClient";
+import { createAuthStore } from "./authStore";
+import { getPasswordValidationError } from "../utils/passwordPolicy";
 
-function readUsers() {
-  try {
-    const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    return Array.isArray(users) ? users : [];
-  } catch {
-    return [];
-  }
+const authStore = createAuthStore(supabase);
+
+export function AuthProvider({ children }) {
+  useEffect(() => authStore.start(), []);
+  return children;
 }
 
-function saveUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-export function registerUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = readUsers();
-
-  if (users.some((user) => user.email === normalizedEmail)) {
-    return { success: false, error: "An account with this email already exists." };
-  }
-
-  saveUsers([...users, { email: normalizedEmail, password }]);
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, normalizedEmail);
-
-  return { success: true };
-}
-
-export function loginUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const user = readUsers().find(
-    (storedUser) =>
-      storedUser.email === normalizedEmail && storedUser.password === password,
+export function useAuth() {
+  return useSyncExternalStore(
+    authStore.subscribe,
+    authStore.getSnapshot,
+    authStore.getSnapshot,
   );
+}
 
-  if (!user) {
-    return { success: false, error: "The email or password is incorrect." };
+export async function registerUser(email, password, username) {
+  const passwordError = getPasswordValidationError(password);
+  if (passwordError) {
+    return { success: false, error: passwordError };
   }
 
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, user.email);
-  return { success: true };
+  const normalizedUsername = username.trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
+    return {
+      success: false,
+      error: "Username must be 3 to 20 letters, numbers, or underscores.",
+    };
+  }
+
+  try {
+    const { data, error } = await getSupabaseClient().auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: { data: { username: normalizedUsername } },
+    });
+
+    if (error) {
+      const errorMessage = error.message.toLowerCase();
+      const message = errorMessage.includes("username is already taken")
+        || errorMessage.includes("profiles_username_lower_uidx")
+        ? "That username is already taken. Please choose another."
+        : errorMessage.includes("database error saving new user")
+          ? "Unable to create the account. The email may already be registered or the username may be taken."
+          : error.message;
+      return { success: false, error: message };
+    }
+    return { success: true, needsEmailConfirmation: !data.session };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to create your account.",
+    };
+  }
+}
+
+export async function loginUser(email, password) {
+  try {
+    const { error } = await getSupabaseClient().auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to log in.",
+    };
+  }
 }
 
 export function getCurrentUser() {
-  return localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+  return authStore.getSnapshot().user?.email ?? null;
 }
 
-export function logoutUser() {
-  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+export function getCurrentUserId() {
+  return authStore.getSnapshot().user?.id ?? null;
+}
+
+export async function logoutUser() {
+  try {
+    const { error } = await getSupabaseClient().auth.signOut();
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unable to log out.",
+    };
+  }
 }
