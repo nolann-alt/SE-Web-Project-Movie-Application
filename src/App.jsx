@@ -206,15 +206,8 @@ export default function App() {
         )
     );
 
-  const fixedCategoryIds = ["popular", "now-playing", "trending"];
   const usedMovieIds = new Set();
-  const deduplicatedCategories = [...orderedCategories]
-    .sort((a, b) => {
-      const aFixed = fixedCategoryIds.includes(a.id);
-      const bFixed = fixedCategoryIds.includes(b.id);
-      if (aFixed !== bFixed) return aFixed ? -1 : 1;
-      return 0;
-    })
+  const deduplicatedCategories = orderedCategories
     .map((category) => {
       const uniqueMovies = [];
 
